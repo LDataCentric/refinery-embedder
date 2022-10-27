@@ -3,11 +3,12 @@ import requests
 import json
 import time
 from util import daemon
+import os
 
 __config = None
 
 # meant as a const value since env variables will be removed at some point
-REQUEST_URL = "http://refinery-config:80/full_config"
+# REQUEST_URL = "http://refinery-config:80/full_config"
 
 
 def __get_config() -> Dict[str, Any]:
@@ -19,7 +20,7 @@ def __get_config() -> Dict[str, Any]:
 
 
 def refresh_config():
-    response = requests.get(REQUEST_URL)
+    response = requests.get(f"{os.getenv('CONFIG')}/full_config")
     if response.status_code == 200:
         global __config
         __config = json.loads(json.loads(response.text))

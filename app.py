@@ -122,3 +122,8 @@ def upload_tensor_data(project_id: str, embedding_id: str) -> Tuple[int, str]:
     request_util.post_embedding_to_neural_search(project_id, embedding_id)
     general.remove_and_refresh_session(session_token)
     return 200, ""
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(app, host="0.0.0.0", port=2873)

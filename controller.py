@@ -30,6 +30,7 @@ from util.notification import send_project_update, embedding_warning_templates
 import os
 import pandas as pd
 from submodules.s3 import controller as s3
+import umap
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -46,6 +47,7 @@ def generate_batches(
     length = len(record_ids)
     record_batches = []
     document_batches = []
+
     for idx in range(0, length, embedder.batch_size):
         record_ids_batch = record_ids[idx : min(idx + embedder.batch_size, length)]
         if embedding_type == "classification":
@@ -59,9 +61,24 @@ def generate_batches(
         record_batches.append(record_ids_batch)
         document_batches.extend(documents)
 
-    embedding_batches = embedder.fit_transform(document_batches, as_generator=True)
-    for record_batch in record_batches:
-        yield {"record_ids": record_batch, "embeddings": next(embedding_batches)}
+    embeddings = embedder.fit_transform(document_batches)
+
+    # Calculate reduced dimensionality
+    trans = umap.UMAP(n_neighbors=10,
+        min_dist=0.1,
+        n_components=2,
+        metric="euclidean",
+        random_state=42)
+    reduced_embeddings = trans.fit_transform(embeddings)
+
+    batch_size = embedder.batch_size
+    for batch, record_batch in enumerate(record_batches):
+        embeddings_batch = embeddings[batch * batch_size : (batch + 1) * batch_size]
+        reduced_embeddings_batch = reduced_embeddings[batch * batch_size : (batch + 1) * batch_size]
+
+        yield {"record_ids": record_batch,
+               "embeddings": embeddings_batch,
+               "reduced_embeddings": reduced_embeddings_batch}
 
 
 def get_docbins(
@@ -322,6 +339,7 @@ def run_encoding(
         )
         embedding.delete_tensors(embedding_id, with_commit=True)
         chunk = 0
+
         for pair in generate_batches(
             request.project_id,
             record_ids,
@@ -335,6 +353,7 @@ def run_encoding(
 
             record_ids_batched = pair["record_ids"]
             attribute_values_encoded_batch = pair["embeddings"]
+            # data_reduced = pair["data_reduced"]
             if not embedding.get(request.project_id, embedding_id):
                 logger.info(
                     f"Aborted {attribute_name}-{embedding_type}-{request.config_string}"
@@ -345,6 +364,8 @@ def run_encoding(
                 embedding_id,
                 record_ids_batched,
                 attribute_values_encoded_batch,
+                attribute_values_encoded_batch,
+                # data_reduced,
                 with_commit=True,
             )
             send_progress_update_throttle(
