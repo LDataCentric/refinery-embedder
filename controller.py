@@ -69,7 +69,7 @@ def generate_batches(
         n_components=2,
         metric="euclidean",
         random_state=42)
-    reduced_embeddings = trans.fit_transform(embeddings)
+    reduced_embeddings = trans.fit_transform(embeddings).tolist()
 
     batch_size = embedder.batch_size
     for batch, record_batch in enumerate(record_batches):
@@ -353,7 +353,7 @@ def run_encoding(
 
             record_ids_batched = pair["record_ids"]
             attribute_values_encoded_batch = pair["embeddings"]
-            # data_reduced = pair["data_reduced"]
+            data_reduced = pair["reduced_embeddings"]
             if not embedding.get(request.project_id, embedding_id):
                 logger.info(
                     f"Aborted {attribute_name}-{embedding_type}-{request.config_string}"
@@ -364,8 +364,7 @@ def run_encoding(
                 embedding_id,
                 record_ids_batched,
                 attribute_values_encoded_batch,
-                attribute_values_encoded_batch,
-                # data_reduced,
+                data_reduced,
                 with_commit=True,
             )
             send_progress_update_throttle(
