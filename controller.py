@@ -61,6 +61,9 @@ def generate_batches(
         record_batches.append(record_ids_batch)
         document_batches.extend(documents)
 
+    # Convert document_batches to string
+    document_batches = [str(doc) for doc in document_batches]
+
     embeddings = embedder.fit_transform(document_batches)
 
     # Calculate reduced dimensionality
